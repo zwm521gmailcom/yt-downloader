@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# Secrets and per-machine state. Never commit these.
+# ---------------------------------------------------------------------------
+
+# Generated at first run; leaking it lets another local process drive the bridge.
+server/.token
+server/.start-token
+
+# Written by the launcher while it runs.
+launcher/.launcher-state.json
+
+# Diagnostics output.
+launch-error.log
+
+# ---------------------------------------------------------------------------
+# Runtime output
+# ---------------------------------------------------------------------------
+
+# Downloads land here when the configured folder is not writable.
+downloads/
+test-downloads/
+
+# Scratch space used by tests and helper scripts.
+.tmp/
+
+# ---------------------------------------------------------------------------
+# Node
+# ---------------------------------------------------------------------------
+
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# ---------------------------------------------------------------------------
+# Editors and OS cruft
+# ---------------------------------------------------------------------------
+
+.vscode/
+.idea/
+*.swp
+*~
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---------------------------------------------------------------------------
+# Build artefacts
+# ---------------------------------------------------------------------------
+
+*.zip
+*.crx
+*.pem

@@ -1,0 +1,49 @@
+@echo off
+REM ---------------------------------------------------------------------------
+REM  Stop the download bridge.
+REM
+REM  ASCII-only on purpose: see start-bridge.cmd.utf8 for the reasoning.
+REM
+REM  Needed because an auto-started bridge runs in the background with no
+REM  window, so there is nothing to close and no Ctrl+C to press.
+REM ---------------------------------------------------------------------------
+
+setlocal
+
+echo.
+echo   Stopping the YouTube Downloader bridge...
+echo   正在停止 YouTube 下载器本地服务...
+echo.
+
+REM Stop the bridge and the launcher that supervises it. Each is found by the
+REM port it owns, so we never kill an unrelated node.exe the user is running.
+call :stop_port 8765 "bridge"  "本地服务"
+call :stop_port 8766 "launcher" "启动器"
+
+echo.
+echo   Done.  /  完成。
+echo.
+echo   The extension's "Start bridge" button will not work until the launcher
+echo   runs again (it restarts at your next sign-in, or run start-launcher.cmd).
+echo   启动器停止后，「启动服务」按钮将暂时不可用；
+echo   下次登录会自动恢复，也可手动运行 start-launcher.cmd。
+echo.
+pause
+endlocal
+exit /b 0
+
+
+:stop_port
+set "PORT=%~1"
+set "LABEL=%~2"
+set "LABEL_CN=%~3"
+set "FOUND="
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":%PORT%" ^| findstr "LISTENING"') do (
+  set "FOUND=1"
+  echo   Stopping %LABEL% ^(PID %%P^) ...
+  taskkill /pid %%P /t /f >nul 2>nul
+)
+if not defined FOUND (
+  echo   %LABEL% was not running.  /  %LABEL_CN%未运行。
+)
+exit /b 0

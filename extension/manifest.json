@@ -1,0 +1,91 @@
+{
+  "manifest_version": 3,
+  "name": "Video Downloader",
+  "version": "1.1.0",
+  "description": "Download video, audio and subtitles from YouTube and X using a local yt-dlp bridge.",
+  "minimum_chrome_version": "116",
+
+  "permissions": [
+    "storage",
+    "downloads",
+    "cookies",
+    "tabs",
+    "notifications"
+  ],
+
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://youtu.be/*",
+    "https://*.googlevideo.com/*",
+    "https://x.com/*",
+    "https://*.x.com/*",
+    "https://twitter.com/*",
+    "https://*.twitter.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "YouTube Downloader",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*",
+        "https://music.youtube.com/*",
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": ["content/overlay.js"],
+      "css": ["content/overlay.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+
+  "commands": {
+    "download-current": {
+      "suggested_key": {
+        "default": "Alt+D"
+      },
+      "description": "Download the current video at the default quality"
+    }
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "content/*", "i18n.js", "sites.js"],
+      "matches": [
+        "https://*.youtube.com/*",
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ]
+    }
+  ]
+}

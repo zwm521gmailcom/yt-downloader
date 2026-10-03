@@ -1,0 +1,17 @@
+/*
+ * The overlay renders entirely inside a shadow root, so all of its real
+ * styling lives in overlay.js. Shadow DOM already isolates it from YouTube's
+ * CSS, so this file only needs to neutralise inheritance on the host element.
+ *
+ * Note: the host must NOT set `pointer-events: none`. That property is
+ * inherited, and shadow-root children are not matched by a light-DOM `> *`
+ * selector, so they would inherit `none` and become unclickable. The wrapper
+ * inside the shadow root is sized to its content, so it only ever covers the
+ * button and the panel.
+ */
+
+#ytd-downloader-root {
+  all: initial;
+  position: fixed;
+  z-index: 2147483646;
+}

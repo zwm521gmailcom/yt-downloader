@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# Line-ending policy
+# ---------------------------------------------------------------------------
+#
+# Windows is the primary platform here, and `core.autocrlf=true` is a very
+# common global setting. Without explicit rules git rewrites LF to CRLF on
+# checkout, which silently breaks anything that must keep LF.
+#
+# The concrete failure this prevents: start-bridge.sh is stored with LF, but a
+# checkout on Windows turned it into CRLF, so its first line became
+# "#!/usr/bin/env bash\r". bash then reports the interpreter path as not found
+# and the script cannot run at all. Cloning the repository was enough to break
+# it — no edit required.
+
+# Default: normalise to LF in the repository and on checkout, on every platform.
+* text=auto eol=lf
+
+# Shell scripts must stay LF. A CR in the shebang breaks execution.
+*.sh text eol=lf
+
+# ---------------------------------------------------------------------------
+# Files git must not touch
+# ---------------------------------------------------------------------------
+
+# The Windows batch files are generated in the console codepage (GBK) with CRLF.
+# Marking them binary keeps their bytes exactly as generated: a GBK file
+# normalised as text could have its Chinese text corrupted by encoding
+# conversion during checkout.
+*.cmd -text
+*.cmd.utf8 -text
+
+# ---------------------------------------------------------------------------
+# Windows-specific text
+# ---------------------------------------------------------------------------
+
+# VBScript runs under wscript.exe, where CRLF is conventional.
+*.vbs text eol=crlf
+
+# ---------------------------------------------------------------------------
+# Binary assets
+# ---------------------------------------------------------------------------
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary
+*.crx binary
+*.pem binary

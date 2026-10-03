@@ -1,0 +1,71 @@
+@echo off
+REM ---------------------------------------------------------------------------
+REM  Stop every YouTube Downloader process.
+REM
+REM  This is the big hammer: use it when stop-bridge.cmd reports that the ports
+REM  are still held, or when a stale bridge is serving old code and the
+REM  extension keeps talking to it.
+REM
+REM  It kills node.exe processes whose command line mentions this project, so an
+REM  unrelated Node.js app you are running is left alone.
+REM ---------------------------------------------------------------------------
+
+setlocal enabledelayedexpansion
+
+echo.
+echo   Stopping all YouTube Downloader processes...
+echo   正在停止所有 YouTube 下载器进程...
+echo.
+
+set "FOUND="
+for /f "skip=1 tokens=*" %%L in ('wmic process where "name='node.exe'" get ProcessId^,CommandLine /format:list 2^>nul') do (
+  set "LINE=%%L"
+  echo !LINE! | findstr /i "yt-downloader launcher.js server.js" >nul 2>nul
+  if not errorlevel 1 (
+    echo !LINE! | findstr /i "ProcessId=" >nul 2>nul
+    if not errorlevel 1 (
+      set "PIDVAL=!LINE:ProcessId=!"
+      set "PIDVAL=!PIDVAL:=!"
+      set "PIDVAL=!PIDVAL: =!"
+      if defined PIDVAL (
+        echo   Killing node.exe PID !PIDVAL!
+        taskkill /F /PID !PIDVAL! /T >nul 2>nul
+        set "FOUND=1"
+      )
+    )
+  )
+)
+
+REM Fall back to killing whatever holds our ports, in case wmic is unavailable.
+for %%P in (8765 8766) do (
+  for /f "tokens=5" %%A in ('netstat -ano ^| findstr ":%%P" ^| findstr "LISTENING"') do (
+    echo   Killing PID %%A holding port %%P
+    taskkill /F /PID %%A /T >nul 2>nul
+    set "FOUND=1"
+  )
+)
+
+if not defined FOUND (
+  echo   Nothing was running.  /  没有正在运行的进程。
+) else (
+  echo.
+  echo   Done.  /  完成。
+)
+
+echo.
+echo   Port status  /  端口状态:
+for %%P in (8765 8766) do (
+  netstat -ano | findstr ":%%P" | findstr "LISTENING" >nul 2>nul
+  if errorlevel 1 (
+    echo     %%P  free      /  已释放
+  ) else (
+    echo     %%P  STILL IN USE  /  仍被占用
+  )
+)
+
+echo.
+echo   If a port is still in use, sign out or restart Windows.
+echo   若端口仍被占用，请注销或重启 Windows。
+echo.
+pause
+endlocal

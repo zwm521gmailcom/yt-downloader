@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="../icons/icon32.png" alt="" width="22" height="22">
+      <span data-i18n="app_name">YouTube Downloader</span>
+    </div>
+    <div class="top-actions">
+      <button id="btnOptions" class="icon-btn" data-i18n-title="settings" data-i18n-aria="settings"
+              title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Bridge status banner -->
+  <div id="status" class="status checking">
+    <span class="dot"></span>
+    <span id="statusText" data-i18n="checking_bridge">Checking bridge…</span>
+  </div>
+
+  <!-- Setup help, shown when the bridge is unreachable -->
+  <section id="helpBox" class="help" hidden>
+    <h3 data-i18n="help_title">The local bridge is not running</h3>
+
+    <!-- One-click start via the ytdl:// protocol (Windows). Hidden when the
+         platform cannot support it or the launcher is not installed. -->
+    <div id="launchRow" class="launch-row">
+      <button id="btnStartBridge" class="btn primary" data-i18n="launch_start">Start bridge</button>
+      <span id="launchState" class="launch-state"></span>
+    </div>
+
+    <p data-i18n="help_intro" class="help-or">Or start it manually:</p>
+    <ol>
+      <li data-i18n="help_step1">Open the <code>yt-downloader</code> folder</li>
+      <li data-i18n="help_step2">Run <code>start-bridge.cmd</code> (Windows) or <code>./start-bridge.sh</code></li>
+      <li data-i18n="help_step3">Leave that window open, then reopen this popup</li>
+    </ol>
+    <button id="btnRetry" class="btn ghost" data-i18n="retry_connection">Retry connection</button>
+  </section>
+
+  <!-- Current tab quick download -->
+  <section id="currentCard" class="card current" hidden>
+    <div class="cur-head">
+      <img id="curThumb" class="cur-thumb" alt="">
+      <div class="cur-meta">
+        <p id="curTitle" class="cur-title">—</p>
+        <span id="curSub" class="cur-sub"></span>
+      </div>
+    </div>
+    <div id="curQualities" class="chips"></div>
+    <div id="curSubs" class="subs" hidden>
+      <label class="chk">
+        <input type="checkbox" id="optSubs">
+        <span data-i18n="ov_save_subs">Save subtitles</span>
+      </label>
+      <select id="subLang" data-i18n-aria="ov_sub_lang" aria-label="Subtitle language"></select>
+    </div>
+    <div class="row">
+      <button id="curAudio" class="btn ghost small" data-i18n="audio_only">Audio only</button>
+      <button id="curCover" class="btn ghost small" data-i18n="cover">Cover</button>
+      <button id="curDownload" class="btn primary grow" data-i18n="download">Download</button>
+    </div>
+    <div id="curMsg" class="msg" hidden></div>
+  </section>
+
+  <!-- Tabs -->
+  <nav class="tabs">
+    <button class="tab on" data-view="queue">
+      <span data-i18n="tab_queue">Queue</span> <span id="badgeActive" class="badge" hidden>0</span>
+    </button>
+    <button class="tab" data-view="history" data-i18n="tab_history">History</button>
+    <button class="tab" data-view="cookies" data-i18n="tab_signin">Sign-in</button>
+  </nav>
+
+  <!-- Queue / History -->
+  <main id="viewQueue" class="view">
+    <div class="toolbar">
+      <span id="queueSummary" class="summary" data-i18n="queue_none_active">No active downloads</span>
+      <button id="btnClear" class="link" data-i18n="clear_finished" hidden>Clear finished</button>
+    </div>
+    <div id="jobList" class="jobs"></div>
+    <div id="emptyQueue" class="empty">
+      <p data-i18n="queue_empty">Nothing in the queue.</p>
+      <p class="hint" data-i18n="queue_hint">Open a YouTube video and click the red Download button on the page.</p>
+    </div>
+  </main>
+
+  <main id="viewHistory" class="view" hidden>
+    <div class="toolbar">
+      <span class="summary" data-i18n="history_subtitle">Completed and failed downloads</span>
+      <button id="btnOpenFolder" class="link" data-i18n="open_folder">Open folder</button>
+    </div>
+    <div id="historyList" class="jobs"></div>
+    <div id="emptyHistory" class="empty"><p data-i18n="history_empty">No history yet.</p></div>
+  </main>
+
+  <main id="viewCookies" class="view" hidden>
+    <div class="card">
+      <h3 data-i18n="cookies_title">Signed-in downloads</h3>
+      <p class="muted" data-i18n="cookies_body">
+        Some videos (age-restricted, private, members-only) and YouTube's
+        "confirm you're not a bot" check require your browser session.
+        Send your YouTube cookies to the local bridge so yt-dlp can use them.
+      </p>
+      <div class="row">
+        <button id="btnPushCookies" class="btn primary grow" data-i18n="cookies_send">Send my YouTube cookies</button>
+      </div>
+      <div id="cookieMsg" class="msg" hidden></div>
+      <div id="cookieState" class="cookie-state"></div>
+      <hr>
+      <h3 data-i18n="cookies_privacy_title">Privacy</h3>
+      <p class="muted">
+        <span data-i18n="cookies_privacy_body">Cookies are written to a local temp file readable only by the bridge, and are sent nowhere except to yt-dlp on this machine.</span>
+        <a href="#" id="linkClearCookies" data-i18n="cookies_delete">Delete stored cookies</a>.
+      </p>
+    </div>
+  </main>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

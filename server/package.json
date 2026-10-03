@@ -1,0 +1,16 @@
+{
+  "name": "yt-downloader-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local bridge service that runs yt-dlp for the YouTube Downloader Chrome extension.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "doctor": "node doctor.js",
+    "test": "node ../tests/run.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
