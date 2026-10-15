@@ -58,6 +58,8 @@ const youtube = {
     merging: true,
     /** A cover image can be fetched on its own. */
     thumbnails: true,
+    /** yt-dlp can reach this site, so no page-side extraction is needed. */
+    directMedia: false,
   },
 
   test(u) {
@@ -115,6 +117,8 @@ const x = {
     playlist: false,
     merging: false,
     thumbnails: true,
+    /** yt-dlp can reach this site, so no page-side extraction is needed. */
+    directMedia: false,
   },
 
   test(u) {
