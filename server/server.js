@@ -294,6 +294,13 @@ route('POST', /^\/cookies$/, async (req, res) => {
     }
   }
 
+  // Create the directory immediately before writing, not just at startup.
+  // The cookie directory lives under the OS temp directory, and Windows
+  // (Storage Sense, Disk Cleanup) removes files there while the bridge is
+  // running. The bridge is a long-lived process, so a directory that existed at
+  // startup can be gone by the time cookies arrive, and writeFileSync then
+  // fails with ENOENT on a path the user never chose.
+  fs.mkdirSync(config.cookieDir, { recursive: true });
   fs.writeFileSync(file, lines.join('\n') + '\n', { encoding: 'utf8', mode: 0o600 });
   const count = lines.filter((l) => !l.startsWith('#') && l.trim()).length;
   sendJson(res, 200, { ok: true, profile, count, path: file });

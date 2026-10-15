@@ -286,6 +286,7 @@ async function pushCookies(only) {
   if (!targets.length) throw new Error(`Unknown site: ${only}`);
 
   const results = [];
+  const failures = [];
 
   for (const site of targets) {
     const collected = [];
@@ -313,19 +314,32 @@ async function pushCookies(only) {
 
     if (!collected.length) continue; // not signed in there; that is fine
 
-    const result = await bridgeFetch('/cookies', {
-      method: 'POST',
-      body: JSON.stringify({ domain: site.cookieProfile, cookies: collected }),
-    });
+    // One site failing must not discard the ones that already succeeded, and
+    // the user needs to know which site is the problem.
+    try {
+      const result = await bridgeFetch('/cookies', {
+        method: 'POST',
+        body: JSON.stringify({ domain: site.cookieProfile, cookies: collected }),
+      });
 
-    results.push({
-      site: site.id,
-      label: site.label,
-      profile: result.profile ?? site.cookieProfile,
-      count: result.count ?? collected.length,
-    });
+      results.push({
+        site: site.id,
+        label: site.label,
+        profile: result.profile ?? site.cookieProfile,
+        count: result.count ?? collected.length,
+      });
+    } catch (err) {
+      failures.push({
+        site: site.id,
+        label: site.label,
+        error: String(err?.message || err),
+      });
+    }
   }
 
+  if (!results.length && failures.length) {
+    throw new Error(failures.map((f) => `${f.label}: ${f.error}`).join('; '));
+  }
   if (!results.length) throw new Error(t('bg_no_cookies'));
 
   return {
@@ -333,6 +347,8 @@ async function pushCookies(only) {
     count: results.reduce((n, r) => n + r.count, 0),
     profile: results[0].profile,
     results,
+    // Sites whose cookies could not be saved. Empty on a clean run.
+    failures,
   };
 }
 
@@ -363,7 +379,13 @@ async function probe(videoId, url) {
   const query = url
     ? `url=${encodeURIComponent(url)}`
     : `videoId=${encodeURIComponent(videoId)}`;
-  const params = settings.useCookies ? `&cookieProfile=${encodeURIComponent(settings.cookieProfile)}` : '';
+
+  // Use the profile belonging to the URL's site, the same way buildSpec does.
+  // Sending the global default asked the bridge for youtube.txt when probing
+  // any other site, which either failed outright or probed with the wrong
+  // session.
+  const profile = detectSite(url || '')?.cookieProfile ?? settings.cookieProfile;
+  const params = settings.useCookies ? `&cookieProfile=${encodeURIComponent(profile)}` : '';
   const info = await bridgeFetch(`/probe?${query}${params}`);
   return info;
 }
