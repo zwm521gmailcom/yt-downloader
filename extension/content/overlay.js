@@ -249,6 +249,54 @@
     await showPicker();
   }
 
+  /**
+   * Read the media URL straight out of the page's player.
+   *
+   * Used for sites flagged `directMedia` in sites.js. Those serve their API
+   * behind a per-request signature only the page's own risk SDK can produce, so
+   * yt-dlp cannot reach them — but the browser already has, and the player is
+   * holding the signed URL it fetched. `currentSrc` is the one that actually
+   * loaded; `src` is often empty because the element was populated by script.
+   *
+   * @returns {{url: string, title: string, duration: number}|null}
+   */
+  function readDirectMedia() {
+    const title = readPageTitle();
+
+    for (const v of document.querySelectorAll('video')) {
+      const candidates = [v.currentSrc, v.src];
+      for (const s of v.querySelectorAll('source')) candidates.push(s.src || s.getAttribute('src'));
+      candidates.push(v.getAttribute('data-src'));
+
+      for (const raw of candidates) {
+        const url = String(raw || '');
+        // blob:/mediasource URLs are not fetchable outside the page.
+        if (/^https?:\/\//i.test(url)) {
+          return { url, title, duration: Math.round(v.duration) || 0 };
+        }
+      }
+    }
+    return null;
+  }
+
+  /** A usable title, since Douyin often leaves document.title empty mid-load. */
+  function readPageTitle() {
+    const meta = document.querySelector('meta[property="og:title"], meta[name="title"]');
+    const heading = document.querySelector('h1');
+    const candidates = [
+      document.title,
+      meta?.getAttribute('content'),
+      heading?.textContent,
+    ];
+    for (const c of candidates) {
+      const value = String(c || '').replace(/\s+/g, ' ').trim();
+      // Douyin's placeholder titles are not useful as filenames.
+      if (value && !/^(抖音|douyin|视频)/i.test(value)) return value.slice(0, 120);
+      if (value && candidates.indexOf(c) === 0) return value.slice(0, 120);
+    }
+    return 'douyin';
+  }
+
   async function showPicker() {
     const videoId = extractVideoId();
     if (!videoId) {
@@ -257,6 +305,30 @@
     }
 
     panel.innerHTML = `<div class="spin"><span class="dot"></span>${escapeHtml(t('ov_reading'))}</div>`;
+
+    // Sites that must be read from the page cannot be probed through the
+    // bridge, so build the picker from what the player already has.
+    if (siteSupports('directMedia')) {
+      const direct = readDirectMedia();
+      if (!direct) {
+        renderMessage('err', t('ov_no_media'));
+        return;
+      }
+      cachedInfo = {
+        videoId,
+        title: direct.title,
+        webpageUrl: location.href,
+        duration: direct.duration,
+        subtitles: [],
+        formats: {
+          ladder: [{ selector: null, height: 0, label: 'best', generic: true, hasAudio: true }],
+          audioOnly: [],
+        },
+        directUrl: direct.url,
+      };
+      renderPickerForm(cachedInfo);
+      return;
+    }
 
     const myToken = ++probeToken;
     const result = await send('video:probe', { videoId, url: location.href });
@@ -475,6 +547,13 @@
       } else if (mode === 'audio') {
         pick.audioFormat = audioFormat;
         pick.audioSelector = panel.querySelector('#audioSrc')?.value || null;
+      }
+
+      // For page-extracted sites the URL can expire while the user decides, so
+      // re-read it here rather than reusing whatever the picker captured.
+      if (siteSupports('directMedia')) {
+        const fresh = readDirectMedia();
+        if (fresh) pick.directUrl = fresh.url;
       }
 
       const result = await send('video:download', {

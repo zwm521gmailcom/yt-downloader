@@ -15,6 +15,40 @@ import { buildDownloadArgs, explainYtDlpError, getYtDlpPath } from './ytdlp.js';
 
 const HISTORY_LIMIT = 200;
 
+/**
+ * User-Agent used for direct downloads.
+ *
+ * The Douyin CDN answers 403 to a request without a browser-like UA and Referer
+ * pair, so this mirrors the browser as closely as a fetch can.
+ */
+const DIRECT_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+  + '(KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
+
+/** Human-readable byte count, for the speed column. */
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return '0 B';
+  const units = ['B', 'KiB', 'MiB', 'GiB'];
+  let value = bytes;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i += 1;
+  }
+  return `${value.toFixed(value >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+/** Seconds as mm:ss / h:mm:ss, for the ETA column. */
+function formatEta(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
 class DownloadManager {
   constructor() {
     /** @type {Map<string, any>} */
@@ -162,6 +196,11 @@ class DownloadManager {
       rateLimit: spec.rateLimit ?? null,
       cookieFile: spec.cookieFile ?? null,
 
+      // Set for sites whose media URL has to come from the page (Douyin). When
+      // present the job is fetched directly instead of being handed to yt-dlp.
+      directUrl: spec.directUrl ?? null,
+      referer: spec.referer ?? null,
+
       status: 'queued',
       progress: 0,
       speed: null,
@@ -201,6 +240,13 @@ class DownloadManager {
     job.startedAt = Date.now();
     this.running += 1;
     this.#emit('job:started', job);
+
+    // A job carrying a direct URL does not go through yt-dlp at all. See
+    // #startDirect for why.
+    if (job.directUrl) {
+      this.#startDirect(job);
+      return;
+    }
 
     const safeTitle = sanitiseForFilename(job.title);
     const outputTemplate = path.join(
@@ -297,6 +343,110 @@ class DownloadManager {
         this.#fail(job, explainYtDlpError({ stderr: stderrBuf }) || `yt-dlp exited with code ${code}`);
       }
     });
+  }
+
+  /**
+   * Download a media URL the page handed us, without yt-dlp.
+   *
+   * Douyin's web API needs a per-request `a_bogus` signature that only its own
+   * page can produce, and its risk control also keys off the TLS fingerprint
+   * and device identity. yt-dlp fails all three and gets a 403 (yt-dlp issue
+   * #9667 has been open since April 2024).
+   *
+   * The browser has already cleared all three, and its player is holding the
+   * signed, time-limited URL it fetched. So the extension reads that URL and we
+   * stream it here. The CDN serves it to any client that sends the right
+   * Referer — verified: without it the same URL answers 403.
+   */
+  async #startDirect(job) {
+    const safeTitle = sanitiseForFilename(job.title);
+    const target = path.join(config.downloadDir, `${safeTitle}.mp4`);
+    const part = `${target}.part`;
+
+    const controller = new AbortController();
+    job.abort = controller;
+
+    let stream = null;
+    try {
+      const res = await fetch(job.directUrl, {
+        headers: {
+          // The CDN checks this. The extension sends the page's own origin.
+          Referer: job.referer || 'https://www.douyin.com/',
+          'User-Agent': DIRECT_UA,
+          Accept: '*/*',
+          'Accept-Language': 'zh-CN,zh;q=0.9',
+        },
+        redirect: 'follow',
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(
+          `HTTP ${res.status}${body ? ` — ${body.replace(/\s+/g, ' ').slice(0, 120)}` : ''}`,
+        );
+      }
+      if (!res.body) throw new Error('the server returned an empty body');
+
+      const total = Number(res.headers.get('content-length')) || 0;
+      // A Range response reports the full size in content-range, not length.
+      const range = res.headers.get('content-range') || '';
+      const rangeTotal = Number((range.match(/\/(\d+)$/) || [])[1]) || 0;
+      job.totalBytes = rangeTotal || total || null;
+
+      fs.mkdirSync(config.downloadDir, { recursive: true });
+      stream = fs.createWriteStream(part);
+
+      let received = 0;
+      let lastEmit = 0;
+      const startedAt = Date.now();
+
+      for await (const chunk of res.body) {
+        received += chunk.length;
+        if (!stream.write(chunk)) {
+          await new Promise((r) => stream.once('drain', r));
+        }
+
+        job.downloadedBytes = received;
+        if (job.totalBytes) job.progress = Math.min(99.9, (received / job.totalBytes) * 100);
+
+        const now = Date.now();
+        if (now - lastEmit >= 500) {
+          lastEmit = now;
+          const elapsed = (now - startedAt) / 1000;
+          const bps = elapsed > 0 ? received / elapsed : 0;
+          job.speed = `${formatBytes(bps)}/s`;
+          if (job.totalBytes && bps > 0) {
+            job.eta = formatEta((job.totalBytes - received) / bps);
+          }
+          this.#emit('job:progress', job);
+        }
+      }
+
+      await new Promise((resolve, reject) => {
+        stream.end((err) => (err ? reject(err) : resolve()));
+      });
+      stream = null;
+
+      fs.renameSync(part, target);
+      job.filePath = target;
+      job.fileSize = fs.statSync(target).size;
+      job.progress = 100;
+      job.speed = null;
+      job.eta = null;
+      this.#settle(job, 'done');
+    } catch (err) {
+      try { stream?.destroy(); } catch { /* already closed */ }
+      try { fs.rmSync(part, { force: true }); } catch { /* nothing to remove */ }
+
+      if (controller.signal.aborted || job.cancelled) {
+        this.#settle(job, 'cancelled');
+        return;
+      }
+      this.#fail(job, `Direct download failed: ${err?.message || err}`);
+    } finally {
+      job.abort = null;
+    }
   }
 
   #handleLine(job, rawLine) {
@@ -463,6 +613,12 @@ class DownloadManager {
     if (job.status === 'running' && job.child) {
       job.cancelled = true;
       killTree(job.child);
+      return true;
+    }
+    // Direct downloads have no child process; abort the fetch instead.
+    if (job.status === 'running' && job.abort) {
+      job.cancelled = true;
+      try { job.abort.abort(); } catch { /* already finished */ }
       return true;
     }
     return false;

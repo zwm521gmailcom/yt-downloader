@@ -264,6 +264,8 @@ const en = {
   bg_no_video: 'No YouTube video was detected on this page.',
   bg_live_stream: 'Live streams cannot be downloaded until the broadcast ends.',
   bg_no_cookies: 'No YouTube cookies found. Open youtube.com and sign in, then try again.',
+  bg_direct_media_only:
+    'This site can only be downloaded from its own video page, where the browser has already negotiated access. Open the video and use the button on the page.',
   bg_no_file: 'The bridge has no finished file for this download.',
 
   // ---- bridge errors (surfaced verbatim in the queue) ------------------
@@ -521,6 +523,8 @@ const zh = {
   bg_no_video: '当前页面未检测到 YouTube 视频。',
   bg_live_stream: '直播视频需等直播结束后才能下载。',
   bg_no_cookies: '未找到 YouTube cookies。请打开 youtube.com 并登录后重试。',
+  bg_direct_media_only:
+    '该站点只能在它自己的视频页面里下载 —— 只有那里浏览器才已经拿到了访问凭证。请打开视频，用页面上的按钮下载。',
   bg_no_file: '本地服务中不存在该下载的文件。',
 
   // ---- bridge errors ---------------------------------------------------

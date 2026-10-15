@@ -414,6 +414,14 @@ function buildSpec(info, pick = {}) {
     container: settings.container,
   };
 
+  // Sites flagged `directMedia` cannot be fetched by yt-dlp, so the overlay
+  // reads the signed URL out of the player and we pass it through. The bridge
+  // downloads it directly, with the Referer the CDN requires.
+  if (site?.features.directMedia && pick.directUrl) {
+    spec.directUrl = pick.directUrl;
+    spec.referer = `${new URL(sourceUrl).origin}/`;
+  }
+
   if (mode === 'audio') {
     spec.audioFormat = pick.audioFormat || settings.audioFormat;
     spec.audioSelector = pick.audioSelector || info.formats?.audioOnly?.[0]?.selector || null;
@@ -526,6 +534,16 @@ const handlers = {
   },
 
   async 'video:probe'({ videoId, url }) {
+    // Page-extracted sites cannot be probed: their API needs a signature only
+    // the page can make. The overlay builds its picker from the player instead,
+    // so reaching here means the request came from somewhere without DOM access
+    // (the popup's "download this tab", or the keyboard shortcut).
+    const site = detectSite(url || videoId || '');
+    if (site?.features.directMedia) {
+      const err = new Error(t('bg_direct_media_only'));
+      err.code = 'DIRECT_MEDIA';
+      throw err;
+    }
     const info = await probe(videoId, url);
     return { ok: true, info };
   },

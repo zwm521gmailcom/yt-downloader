@@ -162,10 +162,21 @@ const douyin = {
   cookieDomains: ['.douyin.com', '.iesdouyin.com'],
   cookieProfile: 'douyin',
   features: {
+    /**
+     * The media URL has to be read out of the page, not fetched by yt-dlp.
+     *
+     * Douyin's web API requires a per-request `a_bogus` signature that only the
+     * page's own risk SDK can produce (yt-dlp issue #9667, open since April
+     * 2024), and its risk control also keys off the TLS fingerprint and device
+     * identity. The browser has already cleared all three: the player holds a
+     * signed, time-limited URL. So the overlay reads that URL and the bridge
+     * downloads it directly with the Referer the CDN expects.
+     */
+    directMedia: true,
     // Douyin publishes several bitrates for the same video, so a ladder is
     // useful when yt-dlp reports them. When it reports only one, the shared
     // "best" fallback in the bridge covers it.
-    qualityLadder: true,
+    qualityLadder: false,
     subtitles: false,
     sponsorblock: false,
     // Video and audio arrive in one progressive MP4; "audio only" still works

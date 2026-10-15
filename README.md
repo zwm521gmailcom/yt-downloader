@@ -51,17 +51,26 @@ brew install node yt-dlp ffmpeg
 
 3. 打开 Chrome 的 `chrome://extensions`，打开开发者模式，选择「加载已解压的扩展程序」，指向本仓库的 `extension` 目录。
 
-4. 打开一个 YouTube、X 或抖音视频。页面上会出现红色下载按钮；也可以点工具栏图标，在弹窗里选画质后下载。快捷键是 `Alt+D`。
+4. 打开一个 YouTube、X 或抖音视频。页面上会出现红色下载按钮；也可以点工具栏图标，在弹窗里选画质后下载。快捷键是 `Alt+D`（抖音除外，见下）。
 
-> **抖音必须先发送 cookies。** 抖音的接口会拒绝没有新近 cookies 的请求 —— **不需要登录**，但必须带 cookies。做法：先在浏览器打开 douyin.com，然后进扩展设置或弹窗的「登录」标签页，点「发送我的 YouTube cookies」（会把所有支持站点的 cookies 一起发送），再回来下载。没发送时会提示 *Douyin needs fresh browser cookies*。
+> **抖音：必须在视频页面上用页面里的按钮下载。**
+>
+> 抖音的接口要求每个请求带一个 `a_bogus` 签名，这个签名只有**页面自己的风控 SDK** 能生成；而且它还校验 TLS 指纹和设备身份。yt-dlp 三项都过不了，所以直接拿到的是 `403`（[yt-dlp issue #9667](https://github.com/yt-dlp/yt-dlp/issues/9667) 自 2024 年 4 月开启至今未修）。
+>
+> 但**你的浏览器三项全过**。所以本扩展换个做法：直接读取播放器里**已经签好名的视频直链**，交给本机服务下载。因此：
+>
+> - 抖音**不需要发送 cookies** —— 走的是页面已经协商好的地址
+> - 必须**在那个视频的页面上**点按钮；弹窗的「下载当前标签页」和 `Alt+D` 对抖音无效（它们拿不到页面里的地址）
+> - 如果页面上的按钮提示「请先播放视频」，让它播放一两秒再点
+> - 直链有**时效**（约 1–2 小时），过期后刷新页面重新获取即可
 
 ### 各站点支持情况
 
-| 站点 | 视频 | 画质可选 | 字幕 | 需要 cookies |
-| --- | --- | --- | --- | --- |
-| YouTube | 最高 4K | ✅ | ✅ | 可选（年龄限制 / 会员 / 机器人校验时需要） |
-| X（Twitter） | ✅ | 单一文件 | — | 多数视频需要 |
-| 抖音 | ✅ | 视 yt-dlp 返回而定 | — | **必须**（但不用登录） |
+| 站点 | 视频 | 画质可选 | 字幕 | 需要 cookies | 下载方式 |
+| --- | --- | --- | --- | --- | --- |
+| YouTube | 最高 4K | ✅ | ✅ | 可选（年龄限制 / 会员 / 机器人校验时需要） | yt-dlp |
+| X（Twitter） | ✅ | 单一文件 | — | 多数视频需要 | yt-dlp |
+| 抖音 | ✅ | 单一文件 | — | **不需要** | 读取页面直链 |
 
 ### 怎么配合
 
@@ -171,17 +180,26 @@ brew install node yt-dlp ffmpeg
 
 3. Open `chrome://extensions`, turn on Developer mode, choose “Load unpacked”, and select the `extension` directory in this repo.
 
-4. Open a YouTube, X or Douyin video. A red download button appears on the page. You can also use the toolbar icon and pick a quality in the popup. The shortcut is `Alt+D`.
+4. Open a YouTube, X or Douyin video. A red download button appears on the page. You can also use the toolbar icon and pick a quality in the popup. The shortcut is `Alt+D` (not for Douyin — see below).
 
-> **Douyin requires cookies first.** Its API rejects requests without recent cookies — you do **not** have to be signed in, but the cookies must be sent. Visit douyin.com in the browser, then open the extension's *Sign-in* tab and click *Send my cookies* (it sends cookies for every supported site at once) before downloading. Without them the download fails with *Douyin needs fresh browser cookies*.
+> **Douyin: use the button on the video page itself.**
+>
+> Douyin's API requires a per-request `a_bogus` signature that only its own page's risk SDK can produce, and it also checks the TLS fingerprint and device identity. yt-dlp fails all three and gets `403` ([yt-dlp issue #9667](https://github.com/yt-dlp/yt-dlp/issues/9667) has been open since April 2024).
+>
+> Your browser, however, already passes all three. So the extension takes a different route: it reads the **already-signed media URL** out of the player and hands it to the local bridge. That means:
+>
+> - Douyin needs **no cookies** — the URL is already negotiated
+> - You must click the button **on that video's page**. The popup's "download this tab" and `Alt+D` do not work for Douyin, because they cannot see the page's URL
+> - If the button says the video is not ready, let it play for a second and try again
+> - The URL expires after roughly 1–2 hours; reload the page to get a fresh one
 
 ### Site support
 
-| Site | Video | Quality choice | Subtitles | Cookies |
-| --- | --- | --- | --- | --- |
-| YouTube | up to 4K | yes | yes | optional (needed for age-gated, members-only, bot check) |
-| X (Twitter) | yes | single file | — | needed for most videos |
-| Douyin | yes | depends on what yt-dlp reports | — | **required** (no sign-in needed) |
+| Site | Video | Quality choice | Subtitles | Cookies | How it downloads |
+| --- | --- | --- | --- | --- | --- |
+| YouTube | up to 4K | yes | yes | optional (needed for age-gated, members-only, bot check) | yt-dlp |
+| X (Twitter) | yes | single file | — | needed for most videos | yt-dlp |
+| Douyin | yes | single file | — | **not needed** | URL read from the page |
 
 ### How the pieces fit
 

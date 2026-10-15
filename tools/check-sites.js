@@ -79,7 +79,8 @@ for (const url of [
 
 /** Flags the UI reads. A missing one silently hides its control. */
 const FEATURES = [
-  'qualityLadder', 'subtitles', 'sponsorblock', 'audioOnly', 'playlist', 'merging', 'thumbnails',
+  'qualityLadder', 'subtitles', 'sponsorblock', 'audioOnly', 'playlist', 'merging',
+  'thumbnails', 'directMedia',
 ];
 
 for (const site of SITES) {
