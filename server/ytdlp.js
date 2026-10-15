@@ -699,8 +699,17 @@ export function explainYtDlpError(err) {
   if (lower.includes('ffmpeg') && (lower.includes('not found') || lower.includes('not installed'))) {
     return 'ffmpeg was not found, so separate video and audio streams cannot be merged. Install ffmpeg and restart the bridge service.';
   }
+  // Douyin's web API rejects requests that do not carry recent cookies, even
+  // for public videos. yt-dlp says "Fresh cookies (not necessarily logged in)
+  // are needed", which is accurate but not actionable on its own.
+  if (lower.includes('fresh cookies') || lower.includes('[douyin]')) {
+    return (
+      'Douyin needs fresh browser cookies. You do not have to be signed in. ' +
+      'Open the extension, go to the Sign-in tab, and send your cookies, then retry.'
+    );
+  }
   if (lower.includes('unsupported url')) {
-    return 'That URL is not a supported YouTube video link.';
+    return 'That URL is not on a supported site. Supported sites: YouTube, X, Douyin.';
   }
   if (lower.includes('download video subtitles')) {
     return (

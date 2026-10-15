@@ -56,6 +56,8 @@ const youtube = {
     playlist: true,
     /** 1080p+ needs video+audio merged by ffmpeg. */
     merging: true,
+    /** A cover image can be fetched on its own. */
+    thumbnails: true,
   },
 
   test(u) {
@@ -112,6 +114,7 @@ const x = {
     audioOnly: false,
     playlist: false,
     merging: false,
+    thumbnails: true,
   },
 
   test(u) {
@@ -144,10 +147,83 @@ const x = {
 };
 
 // ---------------------------------------------------------------------------
+// Douyin (抖音)
+// ---------------------------------------------------------------------------
+
+const douyin = {
+  id: 'douyin',
+  label: '抖音',
+  /**
+   * yt-dlp's Douyin extractor asks for "fresh cookies (not necessarily logged
+   * in)": the web API rejects requests without a recent `ttwid`/`msToken`, so
+   * cookies are required even for public videos. The extension's Sign-in tab
+   * collects these automatically once the user ticks "use browser cookies".
+   */
+  cookieDomains: ['.douyin.com', '.iesdouyin.com'],
+  cookieProfile: 'douyin',
+  features: {
+    // Douyin publishes several bitrates for the same video, so a ladder is
+    // useful when yt-dlp reports them. When it reports only one, the shared
+    // "best" fallback in the bridge covers it.
+    qualityLadder: true,
+    subtitles: false,
+    sponsorblock: false,
+    // Video and audio arrive in one progressive MP4; "audio only" still works
+    // because the bridge extracts the track with ffmpeg.
+    audioOnly: false,
+    playlist: false,
+    merging: false,
+    thumbnails: true,
+  },
+
+  test(u) {
+    return /(^|\.)(douyin\.com|iesdouyin\.com)$/i.test(u.hostname);
+  },
+
+  parse(u) {
+    // Main page:  /video/<id>   image note:  /note/<id>
+    const page = u.pathname.match(/\/(?:video|note|share\/video)\/(\d{15,25})/);
+    if (page) {
+      return { id: page[1], canonical: `https://www.douyin.com/video/${page[1]}` };
+    }
+
+    // The home feed opens videos in a modal: /?modal_id=<id>
+    const modal = u.searchParams.get('modal_id');
+    if (modal && /^\d{15,25}$/.test(modal)) {
+      return { id: modal, canonical: `https://www.douyin.com/video/${modal}` };
+    }
+
+    // Share links (v.douyin.com/<code>) carry no video id. Keep the URL as-is
+    // and let yt-dlp follow the redirect; the code is only used as a label.
+    if (/^v\.douyin\.com$/i.test(u.hostname)) {
+      const code = u.pathname.replace(/^\/+|\/+$/g, '');
+      if (code) return { id: code, canonical: `https://v.douyin.com/${code}/` };
+    }
+
+    return null;
+  },
+
+  isMediaPage(u) {
+    if (/^v\.douyin\.com$/i.test(u.hostname)) return true;
+    if (/^\d{15,25}$/.test(u.searchParams.get('modal_id') || '')) return true;
+    return /\/(?:video|note|share\/video)\/\d{15,25}/.test(u.pathname);
+  },
+
+  /**
+   * A Douyin page can be a profile, a search result or a photo post, and those
+   * have no video. Reuse the same DOM check as X.
+   */
+  hasMediaInPage() {
+    if (typeof document === 'undefined') return false;
+    return Boolean(document.querySelector('video'));
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
 
-export const SITES = [youtube, x];
+export const SITES = [youtube, x, douyin];
 
 /** The neutral shape returned by detect(). */
 function describe(site, u, parsed) {
@@ -253,4 +329,6 @@ export const SITE_HOSTS = [
   'https://music.youtube.com/*',
   'https://x.com/*',
   'https://twitter.com/*',
+  'https://www.douyin.com/*',
+  'https://v.douyin.com/*',
 ];

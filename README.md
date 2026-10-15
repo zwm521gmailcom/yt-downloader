@@ -1,8 +1,8 @@
-# YouTube & X 视频下载器
+# YouTube & X & 抖音 视频下载器
 
 [English](#english) · [中文](#中文)
 
-Chrome 扩展负责页面上的按钮和设置，真正的下载由本机上的 yt-dlp 完成。支持 YouTube 与 X（Twitter）的视频、音频、封面和字幕。
+Chrome 扩展负责页面上的按钮和设置，真正的下载由本机上的 yt-dlp 完成。支持 YouTube、X（Twitter）与抖音的视频、音频、封面和字幕。
 
 ---
 
@@ -10,7 +10,7 @@ Chrome 扩展负责页面上的按钮和设置，真正的下载由本机上的 
 
 ### 能做什么
 
-- 在 YouTube、YouTube Music、X / Twitter 视频页显示下载按钮，扩展弹窗也能直接下载当前标签页。
+- 在 YouTube、YouTube Music、X / Twitter、抖音视频页显示下载按钮，扩展弹窗也能直接下载当前标签页。
 - 按分辨率选择画质。每个档位会显示大约的文件大小（估算值前面带 `~`）。
 - 下载视频、仅音频（MP3 / M4A / Opus / WAV / FLAC）、封面图。
 - YouTube 可勾选保存字幕，并选择语言。人工字幕和自动字幕会分开标出，中文和英文排在前面。
@@ -51,7 +51,17 @@ brew install node yt-dlp ffmpeg
 
 3. 打开 Chrome 的 `chrome://extensions`，打开开发者模式，选择「加载已解压的扩展程序」，指向本仓库的 `extension` 目录。
 
-4. 打开一个 YouTube 或 X 视频。页面上会出现红色下载按钮；也可以点工具栏图标，在弹窗里选画质后下载。快捷键是 `Alt+D`。
+4. 打开一个 YouTube、X 或抖音视频。页面上会出现红色下载按钮；也可以点工具栏图标，在弹窗里选画质后下载。快捷键是 `Alt+D`。
+
+> **抖音必须先发送 cookies。** 抖音的接口会拒绝没有新近 cookies 的请求 —— **不需要登录**，但必须带 cookies。做法：先在浏览器打开 douyin.com，然后进扩展设置或弹窗的「登录」标签页，点「发送我的 YouTube cookies」（会把所有支持站点的 cookies 一起发送），再回来下载。没发送时会提示 *Douyin needs fresh browser cookies*。
+
+### 各站点支持情况
+
+| 站点 | 视频 | 画质可选 | 字幕 | 需要 cookies |
+| --- | --- | --- | --- | --- |
+| YouTube | 最高 4K | ✅ | ✅ | 可选（年龄限制 / 会员 / 机器人校验时需要） |
+| X（Twitter） | ✅ | 单一文件 | — | 多数视频需要 |
+| 抖音 | ✅ | 视 yt-dlp 返回而定 | — | **必须**（但不用登录） |
 
 ### 怎么配合
 
@@ -116,11 +126,11 @@ yt-downloader/
 
 ## English
 
-A Chrome extension for the buttons and settings. The actual download is done on your machine by yt-dlp. It saves video, audio, cover art, and subtitles from YouTube and X (Twitter).
+A Chrome extension for the buttons and settings. The actual download is done on your machine by yt-dlp. It saves video, audio, cover art, and subtitles from YouTube, X (Twitter) and Douyin.
 
 ### What it does
 
-- A download button on YouTube, YouTube Music, and X / Twitter video pages. The toolbar popup can download the current tab as well.
+- A download button on YouTube, YouTube Music, X / Twitter and Douyin video pages. The toolbar popup can download the current tab as well.
 - A quality picker. Each resolution shows an approximate file size (`~` means the size was estimated).
 - Video, audio only (MP3, M4A, Opus, WAV, FLAC), or a cover image.
 - Optional YouTube subtitles, with a language list. Manual and automatic tracks are labeled separately. Chinese and English are listed first.
@@ -161,7 +171,17 @@ brew install node yt-dlp ffmpeg
 
 3. Open `chrome://extensions`, turn on Developer mode, choose “Load unpacked”, and select the `extension` directory in this repo.
 
-4. Open a YouTube or X video. A red download button appears on the page. You can also use the toolbar icon and pick a quality in the popup. The shortcut is `Alt+D`.
+4. Open a YouTube, X or Douyin video. A red download button appears on the page. You can also use the toolbar icon and pick a quality in the popup. The shortcut is `Alt+D`.
+
+> **Douyin requires cookies first.** Its API rejects requests without recent cookies — you do **not** have to be signed in, but the cookies must be sent. Visit douyin.com in the browser, then open the extension's *Sign-in* tab and click *Send my cookies* (it sends cookies for every supported site at once) before downloading. Without them the download fails with *Douyin needs fresh browser cookies*.
+
+### Site support
+
+| Site | Video | Quality choice | Subtitles | Cookies |
+| --- | --- | --- | --- | --- |
+| YouTube | up to 4K | yes | yes | optional (needed for age-gated, members-only, bot check) |
+| X (Twitter) | yes | single file | — | needed for most videos |
+| Douyin | yes | depends on what yt-dlp reports | — | **required** (no sign-in needed) |
 
 ### How the pieces fit
 
